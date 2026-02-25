@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEOL Study Hub</title>
+    <script src="app.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --sidebar: #1e293b; --accent: #38bdf8;
+            --text: #f1f5f9; --border: #334155; --sb-width: 280px;
+        }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Menu Button */
+        #menuToggle {
+            position: fixed; top: 20px; left: 20px; z-index: 1100;
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 12px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;
+        }
+
+        #overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px); z-index: 950; display: none;
+        }
+        #overlay.active { display: block; }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed; top: 0; left: 0; height: 100%; width: var(--sb-width);
+            background: var(--sidebar); border-right: 1px solid var(--border);
+            padding: 100px 1.5rem; transform: translateX(-100%);
+            transition: transform 0.3s ease; z-index: 1000; box-sizing: border-box;
+            display: flex; flex-direction: column; gap: 20px; overflow-y: auto;
+        }
+        .sidebar.active { transform: translateX(0); }
+
+        .group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 0.7rem; color: var(--accent); text-transform: uppercase; font-weight: bold; }
+        select, input { width: 100%; padding: 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: white; box-sizing: border-box; }
+
+        /* Content */
+        .content { flex: 1; padding: 100px 20px; overflow-y: auto; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 800px; }
+        .card { background: rgba(255,255,255,0.03); padding: 40px; border-radius: 20px; border: 1px solid var(--border); }
+        .m-tag { color: var(--accent); font-weight: bold; margin-bottom: 10px; display: block; }
+        h1 { margin: 0 0 20px 0; font-size: 2.2rem; }
+        .sol-text { line-height: 1.8; color: #cbd5e1; white-space: pre-wrap; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay" onclick="toggleMenu()"></div>
+    <button id="menuToggle" onclick="toggleMenu()">☰ Menu</button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="group">
+            <label>1. Major</label>
+            <select id="majorSelect"><option>Loading...</option></select>
+        </div>
+        <div class="group">
+            <label>2. Search</label>
+            <input type="text" id="search" placeholder="Search topics..." onkeyup="filter()">
+        </div>
+        <div class="group">
+            <label>3. Topic</label>
+            <select id="topicSelect" disabled></select>
+        </div>
+        <div class="group">
+            <label>Font Size</label>
+            <div style="display:flex; gap:10px;">
+                <button onclick="changeFont(-2)" style="flex:1; padding:10px;border: none; cursor:pointer;border-radius: 8px;">A-</button>
+                <button onclick="changeFont(2)" style="flex:1; padding:10px;border: none; cursor:pointer;border-radius: 8px;">A+</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="content">
+        <div id="display" class="container">
+            <div style="text-align: center; opacity: 0.3; margin-top: 15vh;">
+                <h1>Study Portal</h1>
+                <p>Open the menu to select a subject.</p>
+            </div>
+        </div>
+    </main>
+
+<script>
+    let groupedData = {};
+
+    function init() {
+        if (typeof rawStudyData === 'undefined') {
+            alert("data.js not found! Make sure it is in the same folder.");
+            return;
+        }
+        
+        // Group by Major
+        groupedData = rawStudyData.reduce((acc, item) => {
+            const m = item.majior;
+            if (!acc[m]) acc[m] = [];
+            acc[m].push(item);
+            return acc;
+        }, {});
+
+        const sel = document.getElementById('majorSelect');
+        sel.innerHTML = '<option value="">-- Choose Major --</option>';
+        Object.keys(groupedData).sort().forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m; opt.textContent = m;
+            sel.appendChild(opt);
+        });
+    }
+
+    function toggleMenu() {
+        document.getElementById('sidebar').classList.toggle('active');
+        document.getElementById('overlay').classList.toggle('active');
+    }
+
+    document.getElementById('majorSelect').onchange = (e) => {
+        const m = e.target.value;
+        const ts = document.getElementById('topicSelect');
+        ts.disabled = !m;
+        if(m) updateTopics(groupedData[m]);
+    };
+
+    function updateTopics(list) {
+        const ts = document.getElementById('topicSelect');
+        ts.innerHTML = '<option value="">-- Select Topic --</option>';
+        list.forEach((item, i) => {
+            const opt = document.createElement('option');
+            opt.value = i; opt.textContent = item.topic;
+            ts.appendChild(opt);
+        });
+    }
+
+    function filter() {
+        const m = document.getElementById('majorSelect').value;
+        if(!m) return;
+        const q = document.getElementById('search').value.toLowerCase();
+        updateTopics(groupedData[m].filter(t => t.topic.toLowerCase().includes(q)));
+    }
+
+    document.getElementById('topicSelect').onchange = (e) => {
+        const m = document.getElementById('majorSelect').value;
+        const q = document.getElementById('search').value.toLowerCase();
+        const list = q ? groupedData[m].filter(t => t.topic.toLowerCase().includes(q)) : groupedData[m];
+        const item = list[e.target.value];
+        if(item) {
+            document.getElementById('display').innerHTML = `
+                <div class="card">}
+                    <span class="m-tag">${m}</span>
+                    <h1>${item.topic}</h1>
+                    <div class="sol-text">${item.solution}</div>
+                </div>`;
+            toggleMenu();
+        }
+    };
+
+    function changeFont(d) {
+        let s = parseInt(window.getComputedStyle(document.body).fontSize) + d;
+        document.body.style.fontSize = s + "px";
+        localStorage.setItem('study_fs', s);
+    }
+
+    window.onload = () => {
+        document.body.style.fontSize = (localStorage.getItem('study_fs') || 18) + "px";
+        init();
+    };
+</script>
+</body>
+</html>
